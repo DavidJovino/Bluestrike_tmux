@@ -1,7 +1,7 @@
 import os
 import fade
 
-_LOGO_ = """                                                
+_LOGO_ = r"""                                                
                                               
  ______             ______                     
 |  _ \ \            \  ___)                    
@@ -19,8 +19,5 @@ def print_logo():
     print(faded_logo)
 
 if __name__ == "__main__":
-    logo()
-    
-
-
+    print_logo()
 
