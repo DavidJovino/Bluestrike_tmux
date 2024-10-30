@@ -18,19 +18,19 @@ modules = """[bright_white] [1] :mag: Scan for Bluetooth Devices
 [red] [Q] :door: Exit (Ctrl + c)
 """
 
-def Main_Modules():
+async def Main_Modules():
     print_logo()
     print(modules)
 
     user_choice = input("[cyan] :question: Enter your choice ")
 
     if user_choice == "1":
-        mac_address = asyncio.run(main())
+        mac_address = await main()  # testando `await` em vez de `asyncio.run`
         print("Selected MAC address:", mac_address)
         
         scan_again = input("[green] :question: Do you want to perform the scan again (y/n) ").lower() == "y"
         if scan_again:
-            Main_Modules()
+            await Main_Modules()  # testando recursivamente `await Main_Modules()`
 
         kick_ard = input("[red] :rocket: Do you want to kick the user ").lower() == "y"
         start_time = input("[red] :question: In how many seconds do you want to start the attack ")
@@ -40,7 +40,7 @@ def Main_Modules():
         else:
             print(":door: Exiting...")
     elif user_choice == "2":
-        mac_address = input("[red] :signal_strength: Enter the Mac Adress ")
+        mac_address = input("[red] :signal_strength: Enter the Mac Address ")
         start_time = input("[red] :question: In how many seconds do you want to start the attack ")
         _kick_(mac_address, 600, 20, int(start_time))
         
@@ -50,20 +50,22 @@ def Main_Modules():
     else:
         print("[red] :warning: Invalid Option")
         time.sleep(1)
-        Main_Modules()
+        await Main_Modules()  # `await` para a recursão
 
-
-if __name__ == "__main__":
+async def main_loop():
     try:
         # Turns Bluetooth Adapter - ON
         os.system("rfkill unblock bluetooth")
         # ----------------------------------
-        Main_Modules()
+        await Main_Modules() 
     except KeyboardInterrupt:
         console.clear()
         print("[red] :door: User Quit")
         exit()
     except Exception as e:
         console.clear()
-        print(f"[red] :warning: ERROR VALUE [{e} ]")
+        print(f"[red] :warning: ERROR VALUE [{e}]")
         exit()
+
+if __name__ == "__main__":
+    asyncio.run(main_loop()) 

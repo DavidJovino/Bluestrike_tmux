@@ -4,11 +4,8 @@ from rich.console import Console
 from rich.table import Table
 
 async def scan_devices():
-    scanner = BleakScanner()
-    await scanner.start()
-    await asyncio.sleep(5)  # Scan for 5 seconds
-    await scanner.stop()
-    devices = scanner.discovered_devices
+    # Realiza o scan e retorna a lista de dispositivos encontrados
+    devices = await BleakScanner.discover()
     return devices
 
 def display_devices(devices):
@@ -19,7 +16,7 @@ def display_devices(devices):
     table.add_column("MAC Address", style="green")
 
     for i, device in enumerate(devices, start=1):
-        device_name = device.name
+        device_name = device.name or "Unknown"
         mac_address = device.address
         table.add_row(str(i), device_name, mac_address)
 
@@ -43,9 +40,8 @@ async def main():
     display_devices(devices)
     selected_device = select_option(devices)
     mac_address = selected_device
-    # print("Selected MAC address:", mac_address)
+    print("Selected MAC address:", mac_address)
     return mac_address
 
 if __name__ == "__main__":
     asyncio.run(main())
-
